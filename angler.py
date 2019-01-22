@@ -32,11 +32,15 @@ HEADERS = {'Authorization': 'token ' + os.getenv('NACHOBOT_TOKEN', 'supertoken')
 SECRET_PATH = '/var/run/secrets/kubernetes.io/serviceaccount'
 VALID_TOPICS_MAP = os.getenv('VALID_TOPICS_MAP', 'upload-service-valid-topics')
 GITHUB_URL = 'https://api.github.com/repos/RedHatInsights/platform-mq/contents/topics/topics.json'
-CONFIG_MAP_URL = os.getenv('CONFIG_MAP_URL', 'https://api.insights-dev.openshift.com:443/api/v1/namespaces/platform-ci/configmaps/')
+CONFIG_MAP_URL = os.getenv('CONFIG_MAP_URL', 'https://api.insights-dev.openshift.com:443/api/v1/namespaces/')
 
 if os.path.isfile(SECRET_PATH + '/token'):
     with open(SECRET_PATH + '/token', 'r') as f:
         TOKEN = f.read()
+
+if os.path.isfile(SECRET_PATH + '/namespace'):
+    with open(SECRET_PATH + '/namespace', 'r') as f:
+        NAMESPACE = f.read()
 
 configMap = """
             apiVersion: v1
@@ -67,7 +71,7 @@ def check_for_topics(payload):
 
 
 def update_configMap(newMap):
-    url = CONFIG_MAP_URL + VALID_TOPICS_MAP
+    url = CONFIG_MAP_URL + NAMESPACE + '/configmaps/' + VALID_TOPICS_MAP
     headers = {'Authorization': 'Bearer ' + TOKEN, 'Accept': 'application/json', 'Content-Type': 'application/json'}
     response = requests.put(url, headers=headers, data=newMap)
     if response.status_code == 200:
