@@ -96,26 +96,22 @@ def post():
     signature = headers.get('X-Hub-Signature')
     data = request.get_data(as_text=True)
     if verify_hmac_hash(data, signature):
-        return True
-    else:
-        logger.error("Bad Signature")
+        if headers.get('X-GitHub-Event') == 'ping':
+            return json.dumps({'msg': 'Ok'})
+        if headers.get('X-GitHub-Event') == 'pull_request':
+            payload = request.json
+            if not (payload['pull_request']['merged'] and payload['pull_request']['state'] == 'closed'):
+                return json.dumps({'msg': 'Pr Not merged or closed'})
+            response = requests.get(GITHUB_URL, headers=HEADERS)
+            topics_json = requests.get(response.json()['download_url'], headers=HEADERS).text
+            newMap = configMap.format(topics_json)
 
-    if headers.get('X-GitHub-Event') == 'ping':
-        return json.dumps({'msg': 'Ok'})
-    if headers.get('X-GitHub-Event') == 'pull_request':
-        payload = request.json
-        if not (payload['pull_request']['merged'] and payload['pull_request']['state'] == 'closed'):
-            return
-        else:
-            logger.info('PR %s not close or merged', payload['number'])
-        response = requests.get(GITHUB_URL, headers=HEADERS)
-        topics_json = requests.get(response.json()['download_url'], headers=HEADERS).text
-        newMap = configMap.format(topics_json)
-
-        if update_configMap(newMap):
-            logger.info('successully updated topic configMap')
-        else:
-            logger.error('configMap not updated')
+            if update_configMap(newMap):
+                logger.info('ConfigMap updated')
+                return json.dumps('msg': 'Config Map Updated')
+            else:
+                return json.dumps('msg': 'Somethign went wrong. Config map not updated')
+                logger.error('configMap not updated')
 
 
 def main():
