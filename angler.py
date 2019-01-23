@@ -41,13 +41,16 @@ if os.path.isfile(SECRET_PATH + '/namespace'):
     with open(SECRET_PATH + '/namespace', 'r') as f:
         NAMESPACE = f.read()
 
-configMap = """apiVersion: v1
-data:
-  topics.json: \"{0}\"
-kind: ConfigMap
-metadata:
-  name: upload-service-valid-topics
-  namespace: platform-ci"""
+configMap = """{
+"apiVersion": "v1"
+"data":
+  "topics.json": "{0}"
+"kind": "ConfigMap"
+"metadata": {
+  "name": "upload-service-valid-topics",
+  "namespace": "platform-ci"}
+}
+"""
 
 
 def verify_hmac_hash(data, signature):
@@ -105,7 +108,6 @@ def post():
             response = requests.get(GITHUB_URL, headers=HEADERS)
             topics_json = requests.get(response.json()['download_url'], headers=HEADERS).text
             newMap = configMap.format(topics_json)
-            logger.info(newMap)
 
             if update_configMap(newMap):
                 logger.info('ConfigMap updated')
