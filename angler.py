@@ -107,6 +107,7 @@ def post():
             response = requests.get(GITHUB_URL, headers=HEADERS)
             topics_json = requests.get(response.json()['download_url'], headers=HEADERS).text
             newMap = configMap.format(topics_json)
+            logger.info(newMap)
 
             if update_configMap(newMap):
                 logger.info('ConfigMap updated')
