@@ -117,6 +117,7 @@ class TopicsHandler(tornado.web.RequestHandler):
         # Validate Webhook
         signature = headers.get('X-Hub-Signature')
         data = self.request.body
+        logger.info(data)
         if verify_hmac_hash(data, signature):
             return True
         else:
