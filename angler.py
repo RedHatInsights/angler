@@ -70,7 +70,7 @@ def check_for_topics(payload):
 def update_configMap(newMap):
     url = CONFIG_MAP_URL + NAMESPACE + '/configmaps/' + VALID_TOPICS_MAP
     headers = {'Authorization': 'Bearer ' + TOKEN, 'Accept': 'application/json', 'Content-Type': 'application/json'}
-    response = requests.put(url, headers=headers, data=newMap)
+    response = requests.put(url, headers=headers, json=newMap)
     if response.status_code == 200:
         return True
     else:
