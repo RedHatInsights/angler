@@ -46,7 +46,10 @@ configMap = """{
 "data": {
   "topics.json": "%s"
   },
-"kind": "ConfigMap"
+"kind": "ConfigMap",
+"metadata": {
+  "name": "%s"
+  }
 }
 """
 
@@ -105,7 +108,7 @@ def post():
                 return json.dumps({'msg': 'No topics update in this PR'})
             response = requests.get(GITHUB_URL, headers=HEADERS)
             topics_json = requests.get(response.json()['download_url'], headers=HEADERS).json()
-            newMap = json.loads(configMap % topics_json)
+            newMap = json.loads(configMap % (topics_json, VALID_TOPICS_MAP))
 
             if update_configMap(newMap):
                 logger.info('ConfigMap updated')
