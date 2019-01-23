@@ -118,6 +118,7 @@ class TopicsHandler(tornado.web.RequestHandler):
         signature = headers.get('X-Hub-Signature')
         data = self.request.body
         logger.info(data)
+        logger.info(signature)
         if verify_hmac_hash(data, signature):
             return True
         else:
