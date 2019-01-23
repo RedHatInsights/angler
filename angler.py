@@ -43,8 +43,8 @@ if os.path.isfile(SECRET_PATH + '/namespace'):
 
 configMap = """{
 "apiVersion": "v1"
-"data":
-  "topics.json": "{0}"
+ "data":
+  "topics.json": "%s"
 "kind": "ConfigMap"
 "metadata": {
   "name": "upload-service-valid-topics",
@@ -107,7 +107,7 @@ def post():
                 return json.dumps({'msg': 'No topics update in this PR'})
             response = requests.get(GITHUB_URL, headers=HEADERS)
             topics_json = requests.get(response.json()['download_url'], headers=HEADERS).text
-            newMap = configMap.format(topics_json)
+            newMap = configMap % topics_json
 
             if update_configMap(newMap):
                 logger.info('ConfigMap updated')
