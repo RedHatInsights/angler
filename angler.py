@@ -6,11 +6,10 @@ import hmac
 import hashlib
 
 import requests
-import tornado.web
-import tornado.escape
-import tornado.ioloop
 from logstash_formatter import LogstashFormatterV1
+from flask import Flask, request
 
+app = Flask(__name__)
 
 LOGLEVEL = os.getenv("LOGLEVEL", "INFO")
 if any('KUBERNETES' in k for k in os.environ):
@@ -80,79 +79,47 @@ def update_configMap(newMap):
         logger.error('Failed to post update - Code: %s - %s', response.status_code, response.text)
 
 
-class NoAccessLog(tornado.web.RequestHandler):
-    """
-    A class to override tornado's logging mechanism.
-    Reduce noise in the logs via GET requests we don't care about
-    """
-
-    def _log(self):
-        if LOGLEVEL == "DEBUG":
-            super()._log()
-        else:
-            pass
-
-
-class RootHandler(NoAccessLog):
-
-    def get(self):
+@app.route("/", methods=['GET'])
+def get():
         """
         Handle GET requests to the root url
         """
-        self.write('boop')
+        return 'boop'
 
 
-class TopicsHandler(tornado.web.RequestHandler):
+@app.route("/github/hook/valid-topics", methods=['POST'])
+def post():
 
-    def get(self):
-        """
-        Handle GET requests to Topics handler
-        """
-        self.write('this works')
+    headers = request.headers
 
-    def post(self):
+    # Validate Webhook
+    signature = headers.get('X-Hub-Signature')
+    data = request.get_data(as_text=True)
+    if verify_hmac_hash(data, signature):
+        return True
+    else:
+        logger.error("Bad Signature")
 
-        headers = self.request.headers
-
-        # Validate Webhook
-        signature = headers.get('X-Hub-Signature')
-        data = self.request.body
-        if verify_hmac_hash(data, signature):
-            return True
+    if headers.get('X-GitHub-Event') == 'ping':
+        return json.dumps({'msg': 'Ok'})
+    if headers.get('X-GitHub-Event') == 'pull_request':
+        payload = request.json
+        if not (payload['pull_request']['merged'] and payload['pull_request']['state'] == 'closed'):
+            return
         else:
-            logger.error("Bad Signature")
+            logger.info('PR %s not close or merged', payload['number'])
+        response = requests.get(GITHUB_URL, headers=HEADERS)
+        topics_json = requests.get(response.json()['download_url'], headers=HEADERS).text
+        newMap = configMap.format(topics_json)
 
-        if headers.get('X-GitHub-Event') == 'ping':
-            self.write(json.dumps({'msg': 'Ok'}))
-            self.finish()
-        if headers.get('X-GitHub-Event') == 'pull_request':
-            payload = tornado.escape.json_decode(self.request.body)
-            if not (payload['pull_request']['merged'] and payload['pull_request']['state'] == 'closed'):
-                return
-            else:
-                logger.info('PR %s not close or merged', payload['number'])
-            response = requests.get(GITHUB_URL, headers=HEADERS)
-            topics_json = requests.get(response.json()['download_url'], headers=HEADERS).text
-            newMap = configMap.format(topics_json)
-
-            if update_configMap(newMap):
-                logger.info('successully updated topic configMap')
-            else:
-                logger.error('configMap not updated')
-
-
-endpoints = [
-    (r"/", RootHandler),
-    (r"/github/hook/valid-topics", TopicsHandler)
-]
-
-app = tornado.web.Application(endpoints)
+        if update_configMap(newMap):
+            logger.info('successully updated topic configMap')
+        else:
+            logger.error('configMap not updated')
 
 
 def main():
-    app.listen(LISTEN_PORT)
-    logger.info(f"Web server listening on port {LISTEN_PORT}")
-    tornado.ioloop.IOLoop.current().start()
+    app.run(host='0.0.0.0', port=LISTEN_PORT)
 
 
 if __name__ == "__main__":
