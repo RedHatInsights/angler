@@ -114,6 +114,8 @@ def post():
                 logger.error('configMap not updated')
         else:
             return json.dumps({'msg': 'Event is not a pull_request'})
+    else:
+        return json.dumps({'msg': 'Signature does not match'})
 
 
 def main():
