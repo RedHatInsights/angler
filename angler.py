@@ -110,8 +110,10 @@ def post():
                 logger.info('ConfigMap updated')
                 return json.dumps({'msg': 'Config Map Updated'})
             else:
-                return json.dumps({'msg': 'Somethign went wrong. Config map not updated'})
+                return json.dumps({'msg': 'Something went wrong. Config map not updated'})
                 logger.error('configMap not updated')
+        else:
+            return json.dumps({'msg': 'Event is not a pull_request'})
 
 
 def main():
