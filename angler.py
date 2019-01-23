@@ -41,15 +41,13 @@ if os.path.isfile(SECRET_PATH + '/namespace'):
     with open(SECRET_PATH + '/namespace', 'r') as f:
         NAMESPACE = f.read()
 
-configMap = """
-            apiVersion: v1
-            kind: ConfigMap
-            metadata:
-                name: upload-service-valid-topics
-                namespace: platform-ci
-            data:
-                topics.json: \"{0}\"
-            """
+configMap = """apiVersion: v1
+data:
+  topics.json: \"{0}\"
+kind: ConfigMap
+metadata:
+  name: upload-service-valid-topics
+  namespace: platform-ci"""
 
 
 def verify_hmac_hash(data, signature):
