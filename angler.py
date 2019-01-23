@@ -102,6 +102,8 @@ def post():
             payload = request.json
             if not (payload['pull_request']['merged'] and payload['pull_request']['state'] == 'closed'):
                 return json.dumps({'msg': 'Pr Not merged or closed'})
+            if not check_for_topics(payload):
+                return json.dumps({'msg': 'No topics update in this PR'})
             response = requests.get(GITHUB_URL, headers=HEADERS)
             topics_json = requests.get(response.json()['download_url'], headers=HEADERS).text
             newMap = configMap.format(topics_json)
