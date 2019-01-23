@@ -42,10 +42,11 @@ if os.path.isfile(SECRET_PATH + '/namespace'):
         NAMESPACE = f.read()
 
 configMap = """{
-"apiVersion": "v1"
- "data":
+"apiVersion": "v1",
+ "data": {
   "topics.json": "%s"
-"kind": "ConfigMap"
+  },
+"kind": "ConfigMap",
 "metadata": {
   "name": "upload-service-valid-topics",
   "namespace": "platform-ci"}
