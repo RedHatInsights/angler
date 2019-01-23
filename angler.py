@@ -58,7 +58,7 @@ def verify_hmac_hash(data, signature):
 
 
 def check_for_topics(payload):
-    url = "https://api.github.com/repos/redhatinsights/platform-mq/pulls/{0}/files".format(payload['number'])
+    url = "{0}/files".format(payload['url'])
     response = requests.get(url, headers=HEADERS)
     data = response.json()
     if response.status_code == 200:
