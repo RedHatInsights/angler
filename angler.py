@@ -54,7 +54,7 @@ configMap = """
 
 
 def verify_hmac_hash(data, signature):
-    mac = hmac.new(GITHUB_SECRET, data, hashlib.sha1)
+    mac = hmac.new(GITHUB_SECRET.encode('utf-8'), data, hashlib.sha1)
     return hmac.compare_digest('sha1=' + mac.hexdigest(), str(signature))
 
 
@@ -117,8 +117,6 @@ class TopicsHandler(tornado.web.RequestHandler):
         # Validate Webhook
         signature = headers.get('X-Hub-Signature')
         data = self.request.body
-        logger.info(data)
-        logger.info(signature)
         if verify_hmac_hash(data, signature):
             return True
         else:
