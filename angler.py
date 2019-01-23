@@ -112,7 +112,7 @@ class TopicsHandler(tornado.web.RequestHandler):
 
     def post(self):
 
-        headers = self.requests.headers
+        headers = self.request.headers
 
         # Validate Webhook
         signature = headers.get('X-Hub-Signature')
