@@ -104,7 +104,7 @@ def post():
             if not check_for_topics(payload):
                 return json.dumps({'msg': 'No topics update in this PR'})
             response = requests.get(GITHUB_URL, headers=HEADERS)
-            topics_json = requests.get(response.json()['download_url'], headers=HEADERS).text
+            topics_json = requests.get(response.json()['download_url'], headers=HEADERS).json()
             newMap = json.loads(configMap % topics_json)
 
             if update_configMap(newMap):
