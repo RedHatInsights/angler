@@ -53,7 +53,7 @@ configMap = """
 
 
 def verify_hmac_hash(data, signature):
-    mac = hmac.new(GITHUB_SECRET.encode('utf-8'), data, hashlib.sha1)
+    mac = hmac.new(GITHUB_SECRET.encode('utf-8'), data.encode('utf-8'), hashlib.sha1)
     return hmac.compare_digest('sha1=' + mac.hexdigest(), str(signature))
 
 
