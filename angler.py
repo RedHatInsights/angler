@@ -4,6 +4,7 @@ import os
 import json
 import hmac
 import hashlib
+import yaml
 
 import requests
 from logstash_formatter import LogstashFormatterV1
@@ -29,26 +30,21 @@ LISTEN_PORT = os.getenv("LISTEN_PORT", 8080)
 GITHUB_SECRET = os.getenv("GITHUB_SECRET", 'secret')
 HEADERS = {'Authorization': 'token ' + os.getenv('NACHOBOT_TOKEN', 'supertoken')}
 SECRET_PATH = '/var/run/secrets/kubernetes.io/serviceaccount'
-VALID_TOPICS_MAP = os.getenv('VALID_TOPICS_MAP', 'upload-service-valid-topics')
-GITHUB_URL = 'https://api.github.com/repos/RedHatInsights/platform-mq/contents/topics/topics.json'
 CONFIG_MAP_URL = os.getenv('CONFIG_MAP_URL', 'https://api.insights-dev.openshift.com:443/api/v1/namespaces/')
 
 if os.path.isfile(SECRET_PATH + '/token'):
     with open(SECRET_PATH + '/token', 'r') as f:
         TOKEN = f.read()
 
-if os.path.isfile(SECRET_PATH + '/namespace'):
-    with open(SECRET_PATH + '/namespace', 'r') as f:
-        NAMESPACE = f.read()
-
 configMap = """{
 "apiVersion": "v1",
 "data": {
-  "topics.json": "%s"
+  "{0}" : "{1}"
   },
 "kind": "ConfigMap",
 "metadata": {
-  "name": "%s"
+  "name": "{2}",
+  "namespace": {3}
   }
 }
 """
@@ -59,26 +55,78 @@ def verify_hmac_hash(data, signature):
     return hmac.compare_digest('sha1=' + mac.hexdigest(), str(signature))
 
 
-def check_for_topics(payload):
-    url = "{0}/files".format(payload['pull_request']['url'])
-    response = requests.get(url, headers=HEADERS)
-    data = response.json()
+def api_put(headers, url, data):
+    response = requests.put(url, headers=headers, json=data)
     if response.status_code == 200:
-        for i in data:
-            if 'topics.json' in i.get('raw_url').split('/'):
-                return True
-            else:
-                logger.info('No topics.json update in this PR')
-
-
-def update_configMap(newMap):
-    url = CONFIG_MAP_URL + NAMESPACE + '/configmaps/' + VALID_TOPICS_MAP
-    headers = {'Authorization': 'Bearer ' + TOKEN, 'Accept': 'application/json', 'Content-Type': 'application/json'}
-    response = requests.put(url, headers=headers, json=newMap)
-    if response.status_code == 200:
-        return True
+        return response.status_code
     else:
-        logger.error('Failed to post update - Code: %s - %s', response.status_code, response.text)
+        return response.status_code, response.text
+
+
+def get_file(url, headers):
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        return response.status_code
+    else:
+        return response.status_code, response.text
+    contents = requests.get(response.json()['download_url'], headers=HEADERS)
+    return contents
+
+
+class ConfigMapUpdater(object):
+
+    def __init__(self, mapname, namespace, repo, filename, env='dev', rawdata=False):
+
+        self.mapname = mapname
+        self.namespace = namespace
+        self.repo = repo
+        self.filename = filename
+        self.rawdata = rawdata
+        self.url = 'https://api.insights-dev.openshift.com:443/api/v1/namespaces/{0}/{1}/{2}'
+
+        if env == 'prod':
+            self.url = 'https://api.insight.openshift.com:443/api/v1/namespaces/{0}/{1}/{2}'
+
+        self.git_url = 'https://api.github.com/repos/RedHatInsights/{0}/contents/{1}'
+
+    def check_file_change(self, payload):
+        url = "{0}/files".format(payload['pull_request']['url'])
+        response = requests.get(url, headers=HEADERS)
+        data = response.json()
+        if response.status_code == 200:
+            for i in data:
+                if self.filename in i.get('raw_url').split('/'):
+                    return True
+                else:
+                    logger.info('File not updated in this PR')
+
+    def update_configMap(self, newMap):
+        url = self.url.format(self.namespace, '/configmaps/', self.mapname)
+        headers = {'Authorization': 'Bearer ' + TOKEN, 'Accept': 'application/json', 'Content-Type': 'application/json'}
+        result = api_put(headers, url, newMap)
+        if result == 200:
+            return True
+        else:
+            logger.error('Failed to post update - Code: %s - %s', result[0], result[1])
+
+    def github_pr(self, headers, data, payload):
+
+        if verify_hmac_hash(data, headers.get('X-Hub-Signature')):
+            if headers.get('X-GitHub-Event') == 'ping':
+                return json.dumps({'msg': 'Ok'})
+            if headers.get('X-GitHub-Event') == 'pull_request':
+                if not (payload['pull_request']['merged'] and payload['pull_request']['state'] == 'closed'):
+                    return json.dumps({'msg': 'PR not merged or closed'})
+                if not self.check_file_change(payload):
+                    return json.dumps({'msg': 'No file changes in this PR'})
+            result = get_file(self.git_url.format(self.repo, self.filename), headers=HEADERS)
+            if self.rawdata:
+                newMap = json.loads(configMap.format(self.filename.split('/')[-1], result, self.mapname, self.namespace))
+                return newMap
+            else:
+                return json.dumps(yaml.safe_load(result))
+        else:
+            return json.loads({'msg': 'Invalid Secret'})
 
 
 @app.route("/", methods=['GET'])
@@ -92,34 +140,30 @@ def get():
 @app.route("/github/hook/valid-topics", methods=['POST'])
 def post():
 
+    NAMESPACE = os.getenv('NAMESPACE', 'platform-ci')
+
+    MAPNAME = 'upload-service-valid-topics'
     headers = request.headers
-
-    # Validate Webhook
-    signature = headers.get('X-Hub-Signature')
     data = request.get_data(as_text=True)
-    if verify_hmac_hash(data, signature):
-        if headers.get('X-GitHub-Event') == 'ping':
-            return json.dumps({'msg': 'Ok'})
-        if headers.get('X-GitHub-Event') == 'pull_request':
-            payload = request.json
-            if not (payload['pull_request']['merged'] and payload['pull_request']['state'] == 'closed'):
-                return json.dumps({'msg': 'Pr Not merged or closed'})
-            if not check_for_topics(payload):
-                return json.dumps({'msg': 'No topics update in this PR'})
-            response = requests.get(GITHUB_URL, headers=HEADERS)
-            topics_json = requests.get(response.json()['download_url'], headers=HEADERS).json()
-            newMap = json.loads(configMap % (topics_json, VALID_TOPICS_MAP))
+    payload = request.json
 
-            if update_configMap(newMap):
-                logger.info('ConfigMap updated')
-                return json.dumps({'msg': 'Config Map Updated'})
-            else:
-                return json.dumps({'msg': 'Something went wrong. Config map not updated'})
-                logger.error('configMap not updated')
+    Updater = ConfigMapUpdater(MAPNAME,
+                               NAMESPACE,
+                               'platform-mq',
+                               'topics/topics.json',
+                               rawdata=True)
+
+    newMap = Updater.github_pr(headers, data, payload)
+
+    if not newMap.get('msg'):
+        if Updater.update_configMap(newMap):
+            logger.info('ConfigMap updated')
+            return json.dumps({'msg': 'Config Map Updated'})
         else:
-            return json.dumps({'msg': 'Event is not a pull_request'})
+            return json.dumps({'msg': 'Something went wrong. Config map not updated'})
+            logger.error('configMap not updated')
     else:
-        return json.dumps({'msg': 'Signature does not match'})
+        return json.dumps({'msg': newMap.get('msg')})
 
 
 def main():
