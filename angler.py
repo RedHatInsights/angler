@@ -155,6 +155,7 @@ def post():
 
     newMap = Updater.github_pr(headers, data, payload)
 
+    logger.info(newMap)
     if not newMap.get('msg'):
         if Updater.update_configMap(newMap):
             logger.info('ConfigMap updated')
