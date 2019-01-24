@@ -113,12 +113,12 @@ class ConfigMapUpdater(object):
 
         if verify_hmac_hash(data, headers.get('X-Hub-Signature')):
             if headers.get('X-GitHub-Event') == 'ping':
-                return json.dumps({'msg': 'Ok'})
+                return json.loads({'msg': 'Ok'})
             if headers.get('X-GitHub-Event') == 'pull_request':
                 if not (payload['pull_request']['merged'] and payload['pull_request']['state'] == 'closed'):
-                    return json.dumps({'msg': 'PR not merged or closed'})
+                    return json.loads({'msg': 'PR not merged or closed'})
                 if not self.check_file_change(payload):
-                    return json.dumps({'msg': 'No file changes in this PR'})
+                    return json.loads({'msg': 'No file changes in this PR'})
             result = get_file(self.git_url.format(self.repo, self.filename), headers=HEADERS)
             if self.rawdata:
                 newMap = json.loads(configMap.format(self.filename.split('/')[-1], result, self.mapname, self.namespace))
@@ -155,7 +155,6 @@ def post():
 
     newMap = Updater.github_pr(headers, data, payload)
 
-    logger.info(newMap)
     if not newMap.get('msg'):
         if Updater.update_configMap(newMap):
             logger.info('ConfigMap updated')
