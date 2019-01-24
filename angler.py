@@ -95,7 +95,7 @@ class ConfigMapUpdater(object):
         data = response.json()
         if response.status_code == 200:
             for i in data:
-                if self.filename in i.get('raw_url').split('/'):
+                if self.filename == i.get('filename'):
                     return True
                 else:
                     logger.info('File not updated in this PR')
