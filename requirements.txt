@@ -1,3 +1,4 @@
 logstash-formatter
 requests
 flask
+pyyaml
