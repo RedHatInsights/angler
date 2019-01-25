@@ -67,7 +67,7 @@ def get_file(url, headers):
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
         contents = requests.get(response.json()['download_url'], headers=HEADERS)
-        return contents.text
+        return contents.json()
     else:
         return response.status_code, response.text
 
