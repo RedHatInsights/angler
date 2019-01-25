@@ -154,6 +154,7 @@ def post():
                                rawdata=True)
 
     newMap = Updater.github_pr(headers, data, payload)
+    print(newMap)
 
     if not newMap.get('msg'):
         if Updater.update_configMap(newMap):
