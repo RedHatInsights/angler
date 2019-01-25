@@ -39,12 +39,12 @@ if os.path.isfile(SECRET_PATH + '/token'):
 configMap = """{
 "apiVersion": "v1",
 "data": {
-  "{0}" : "{1}"
+  "%s" : "%s"
   },
 "kind": "ConfigMap",
 "metadata": {
-  "name": "{2}",
-  "namespace": {3}
+  "name": "%s",
+  "namespace": "%s"
   }
 }
 """
@@ -121,7 +121,7 @@ class ConfigMapUpdater(object):
                     return json.loads('{"msg": "No file changes in this PR"}')
             result = get_file(self.git_url.format(self.repo, self.filename), headers=HEADERS)
             if self.rawdata:
-                newMap = json.loads(configMap.format(self.filename.split('/')[-1], result, self.mapname, self.namespace))
+                newMap = json.loads(configMap % (self.filename.split('/')[-1], result, self.mapname, self.namespace))
                 return newMap
             else:
                 return json.dumps(yaml.safe_load(result))
@@ -154,7 +154,6 @@ def post():
                                rawdata=True)
 
     newMap = Updater.github_pr(headers, data, payload)
-    print(newMap)
 
     if not newMap.get('msg'):
         if Updater.update_configMap(newMap):
