@@ -10,6 +10,8 @@ import requests
 from logstash_formatter import LogstashFormatterV1
 from flask import Flask, request
 
+import slack
+
 app = Flask(__name__)
 
 LOGLEVEL = os.getenv("LOGLEVEL", "INFO")
@@ -118,7 +120,11 @@ class ConfigMapUpdater(object):
                     return json.loads('{"msg": "PR not merged or closed"}')
                 if not self.check_file_change(payload):
                     return json.loads('{"msg": "No file changes in this PR"}')
-            result = get_file(self.git_url.format(self.repo, self.filename), headers=HEADERS)
+                result = get_file(self.git_url.format(self.repo, self.filename), headers=HEADERS)
+            if headers.get('X-GitHub-Event') == 'push':
+                for i in payload['commits']:
+                    if self.filename in i.get('modified'):
+                        result = get_file(self.git_url.format(self.repo, self.filename), headers=HEADERS)
             if self.rawdata:
                 newMap = json.loads(configMap % (self.filename.split('/')[-1], result, self.mapname, self.namespace))
                 return newMap
@@ -157,6 +163,7 @@ def post():
     if not newMap.get('msg'):
         if Updater.update_configMap(newMap):
             logger.info('ConfigMap updated')
+            slack.send_message('Updated valid-topics config in ' + NAMESPACE)
             return json.dumps({'msg': 'Config Map Updated'})
         else:
             return json.dumps({'msg': 'Something went wrong. Config map not updated'})
