@@ -7,4 +7,4 @@ SLACK_URL = "https://hooks.slack.com/services/"
 def send_message(msg):
 
     message_json = {"text": msg}
-    requests.get(SLACK_URL + SLACK_TOKEN, json=message_json)
+    requests.post(SLACK_URL + SLACK_TOKEN, json=message_json)
