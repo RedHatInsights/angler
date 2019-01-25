@@ -101,7 +101,7 @@ class ConfigMapUpdater(object):
                     logger.info('File not updated in this PR')
 
     def update_configMap(self, newMap):
-        url = self.url.format(self.namespace, '/configmaps/', self.mapname)
+        url = self.url.format(self.namespace, 'configmaps', self.mapname)
         headers = {'Authorization': 'Bearer ' + TOKEN, 'Accept': 'application/json', 'Content-Type': 'application/json'}
         result = api_put(headers, url, newMap)
         if result == 200:
