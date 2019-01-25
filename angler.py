@@ -66,11 +66,10 @@ def api_put(headers, url, data):
 def get_file(url, headers):
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
-        return response.status_code
+        contents = requests.get(response.json()['download_url'], headers=HEADERS)
+        return contents
     else:
         return response.status_code, response.text
-    contents = requests.get(response.json()['download_url'], headers=HEADERS)
-    return contents
 
 
 class ConfigMapUpdater(object):
