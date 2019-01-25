@@ -163,7 +163,7 @@ def post():
     if not newMap.get('msg'):
         if Updater.update_configMap(newMap):
             logger.info('ConfigMap updated')
-            slack.send_message('Updated valid-topics config in ' + NAMESPACE)
+            slack.send_message("Updated valid-topics config in %s" % NAMESPACE)
             return json.dumps({'msg': 'Config Map Updated'})
         else:
             return json.dumps({'msg': 'Something went wrong. Config map not updated'})
