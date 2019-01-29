@@ -5,17 +5,20 @@ from various repos and autoupdate that resource in Openshift.
 
 # General Workflow
 
-1. PR is merged to master contain a new Openshift resource update
-2. Webhook is sent to Angler
+1. Master branch is updated either directly or via PR
+2. Webhook is sent to Angler on a custom URL
 3. Angler inspects the payload to find files it cares about
-4. Angler downloads update
+4. Angler downloads the file
 5. Angler pushes changes to the openshift API
+
+Files that are downloaded can be either actual openshift yaml, or raw data. This can
+be useful if there is a format of a file you want to ingest as a configMap but do not
+have an automated process that actually creates a configmap from the data.
+
+Currently, Angler can update resources within the Openshift Insights development cluster
+because that is where it resides. In order to enable the service to update resources in your
+project, you must give `edit` access to `system:serviceaccount:angler:angler`
 
 # TODO
 
-This should be capabale of handling multiple resource types and work across multiple
-projects and clusters. Currently, it will only update configmaps that reside in the
-platform-ci project. This should have multiple endpoints that all perform different
-tasks and can update various files/resources based on webhooks.
-
-At this point, it's mainly a proof of concept.
+* enable updating of other openshift resources. Currently only setup for configMaps
